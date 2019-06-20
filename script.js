@@ -7,14 +7,32 @@ var code = textarea.value;
 
 var scale = 1;
 
-var points_curveH = [] //armazena os pontos da curva de hermite
-var points_curveB = [] //armazena os pontos da curva de bezier
 var np = 30;
+var fps = 60;
+
+var points_curveH = []
+var p_currentH =[]
+var frame_currentH = 0;
+var total_timeH = 3;
+
+var points_curveB = []
+var p_currentB =[]
+var frame_currentB = 0;
+var total_timeB = 5;
 
 function drawCanvas() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    eval(textarea.value);
+    points_curveH = []
+    points_curveB = []
+    setTimeout(function(){
+        requestAnimationFrame(drawCanvas);
+        frame_currentH+=1;
+        frame_currentB+=1;
+        frame_currentH = frame_currentH % (total_timeH *fps);
+        frame_currentB = frame_currentB % (total_timeB *fps);
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.setTransform(1,0,0,1,0,0);
+        eval(textarea.value);
+    },1000/fps);
 }
 
 function drawCircle(M, canv, color) { //desenha um círculo
@@ -75,7 +93,6 @@ function showPoints() {
 
 }
 
-
 function setHermite(p0, p1, p0l, p1l) {
     points_curveH = []
     ctx.beginPath();
@@ -98,41 +115,12 @@ function setHermite(p0, p1, p0l, p1l) {
     drawCircle(mult(M, translate(p0[0], p0[1])), ctx, "#8b104e");
     drawCircle(mult(M, translate(p1[0], p1[1])), ctx, "#8b104e");
 
+    var p_currentH = calculatePointCurveHermite(p0, p1, p0l, p1l,frame_currentH / (total_timeH * fps));
+   
+    drawCircle(mult(M, translate(p_currentH[0][0], p_currentH[0][1])), ctx, "#32CD32");
+
 }
 
-function drawCurveHermite() {
-    ctx.fillStyle = "#6bd5e1";
-    ctx.strokeStyle = "#6bd5e1";
-
-    for (var i = 0; i < points_curveH.length - 1; i++) {
-        ctx.beginPath();
-        pa = multVec(mult(M, translate(points_curveH[i][0][0], points_curveH[i][0][1])), [0, 0, 1]);
-        pb = multVec(mult(M, translate(points_curveH[i + 1][0][0], points_curveH[i + 1][0][1])), [0, 0, 1]);
-        ctx.moveTo(pa[0], pa[1]);
-        ctx.lineTo(pb[0], pb[1]);
-        ctx.stroke();
-    }
-}
-
-function calculatePointsCurveHermite(p0, p1, p0l, p1l) {
-    q = [
-        [p0[0], p0[1]],
-        [p1[0], p1[1]],
-        [p0l[0], p0l[1]],
-        [p1l[0], p1l[1]]
-    ];
-    for (var i = 0; i <= np; i++) {
-        u = (1. * (i)) / np;
-        p = mult(getMatrixBuhermite(u), q);
-        points_curveH.push([p[0], p[1]]);
-    }
-}
-
-function getMatrixBuhermite(u) {
-    return [
-        [2 * u * u * u - 3 * u * u + 1, -2 * u * u * u + 3 * u * u, u * u * u - 2 * u * u + u, u * u * u - u * u]
-    ];
-}
 
 function setBezier(p0, p1, p2, p3) {
     points_curveB = []
@@ -147,8 +135,8 @@ function setBezier(p0, p1, p2, p3) {
     calculatePointsCurveBezier(p0, p1, p2, p3);
     ctx.lineWidth = 1.5;
     drawCurveBezier();
-    ctx.fillStyle = "#ff836444";
-    ctx.strokeStyle = "#ff836444";
+    ctx.fillStyle = "#ff8364";
+    ctx.strokeStyle = "#ff8364";
     drawArrow(ctx, pos0[0], pos0[1], pos2[0], pos2[1]);
     drawArrow(ctx, pos1[0], pos1[1], pos3[0], pos3[1]);
     ctx.fillStyle = "#494949";
@@ -161,13 +149,36 @@ function setBezier(p0, p1, p2, p3) {
     drawCircle(mult(M, translate(p2[0], p2[1])), ctx, "#8b104e");
     drawCircle(mult(M, translate(p3[0], p3[1])), ctx, "#8b104e");
 
+    var arc = createArc(p0, p1, p2, p3);
+    var total_length = arc[0].length;
+    var length_current = total_length * (frame_currentB / (total_timeB * fps));
+
+    p_current = arc[0].getVec4S(arc[1], length_current)
+    
+    drawCircle(mult(M, translate(p_current.x, p_current.y)), ctx, "#000000");
+    
+    }
+
+function drawCurveHermite() {
+    ctx.fillStyle = "#4B0082";
+    ctx.strokeStyle = "#4B0082";
+
+    for (var i = 0; i < points_curveH.length - 1; i++) {
+        ctx.beginPath();
+        pa = multVec(mult(M, translate(points_curveH[i][0][0], points_curveH[i][0][1])), [0, 0, 1]);
+        pb = multVec(mult(M, translate(points_curveH[i + 1][0][0], points_curveH[i + 1][0][1])), [0, 0, 1]);
+        ctx.moveTo(pa[0], pa[1]);
+        ctx.lineTo(pb[0], pb[1]);
+        ctx.stroke();
+    }
 }
-
+maxT =0;
 function drawCurveBezier() {
-    ctx.fillStyle = "#ff836444";
-    ctx.strokeStyle = "#ff836444";
 
-    for (var i = 0; i < points_curveB.length - 1; i++) {
+    ctx.fillStyle = "#ff8364";
+    ctx.strokeStyle = "#ff8364";
+
+  for (var i = 0; i < points_curveB.length - 1; i++) {
         ctx.beginPath();
         pa = multVec(mult(M, translate(points_curveB[i][0][0], points_curveB[i][0][1])), [0, 0, 1]);
         pb = multVec(mult(M, translate(points_curveB[i + 1][0][0], points_curveB[i + 1][0][1])), [0, 0, 1]);
@@ -175,7 +186,36 @@ function drawCurveBezier() {
         ctx.lineTo(pb[0], pb[1]);
         ctx.stroke();
     }
+    
 }
+
+function calculatePointsCurveHermite(p0, p1, p0l, p1l) {
+    q = [
+        [p0[0], p0[1]],
+        [p1[0], p1[1]],
+        [p0l[0], p0l[1]],
+        [p1l[0], p1l[1]]
+    ];
+
+    for (var i = 0; i <= np; i++) {
+        u = (1. * (i)) / np;
+        p = mult(getMatrixHermite(u), q);
+        points_curveH.push([p[0], p[1]]);
+    }
+}
+
+function calculatePointCurveHermite(p0, p1, p0l, p1l,t) {
+    q = [
+        [p0[0], p0[1]],
+        [p1[0], p1[1]],
+        [p0l[0], p0l[1]],
+        [p1l[0], p1l[1]]
+    ];
+
+       return mult(getMatrixHermite(t), q);
+      
+    }
+
 
 function calculatePointsCurveBezier(p0, p1, p2, p3) {
     q = [
@@ -184,6 +224,7 @@ function calculatePointsCurveBezier(p0, p1, p2, p3) {
         [p2[0], p2[1]],
         [p3[0], p3[1]]
     ];
+
     for (var i = 0; i <= np; i++) {
         u = (1. * (i)) / np;
         p = mult(getMatrixBezier(u), q);
@@ -191,21 +232,46 @@ function calculatePointsCurveBezier(p0, p1, p2, p3) {
     }
 }
 
+function calculatePointCurveBezier(p0, p1, p2, p3,t) {
+    q = [
+        [p0[0], p0[1]],
+        [p1[0], p1[1]],
+        [p2[0], p2[1]],
+        [p3[0], p3[1]]
+    ];
+    return mult(getMatrixBezier(t), q);
+    
+}
+
+function getMatrixHermite(u) {
+    return [
+        [2 * u * u * u - 3 * u * u + 1, -2 * u * u * u + 3 * u * u, u * u * u - 2 * u * u + u, u * u * u - u * u]
+    ];
+}
 function getMatrixBezier(u) {
     return [
-        [-1 * u * u * u + 3 * u * u - 3 * u + 1, 3 * u * u * u - 6 * u * u + 3 * u, -3 * u * u * u + 3 * u * u, u * u * u]
-        /* */
+        [1 - 3 * u + 3 * u * u - u * u * u, 3 * u - 6 * u * u + 3 * u * u * u, 3 * u * u - 3 * u * u * u, u * u * u]
     ];
 }
 
+function setTimeHermite(time){
+    if(time != null && time != 0){
+        total_timeH = time;
+    }
+    
+}
+
+function setTimeBezier(time){
+    if(time != null && time != 0){
+        total_timeB = time;
+    }
+}
 
 save.addEventListener("click", function() {
 
     var fullQuality = canvas.toDataURL('image/png', 1.0);
     window.location.href = fullQuality;
 });
-
-
 
 textarea.addEventListener("input", drawCanvas);
 window.addEventListener("load", drawCanvas);
